@@ -1,39 +1,47 @@
 import os
-import sys
-from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
-from launch.actions import DeclareLaunchArgument
+from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
+    sick_scan_pkg = get_package_share_directory('sick_scan_xd')
+    launch_file_path = os.path.join(sick_scan_pkg, 'launch', 'sick_tim_5xx.launch')
 
-    ld = LaunchDescription()
-    sick_scan_pkg_prefix = get_package_share_directory('sick_scan_xd')
-    launchfile = os.path.basename(__file__)[:-3] # convert "<lidar_name>.launch.py" to "<lidar_name>.launch"
-    launch_file_path = os.path.join(sick_scan_pkg_prefix, 'launch/' + launchfile) # 'launch/sick_lidar.launch')
-    node_arguments=[launch_file_path]
-    
-    # append optional commandline arguments in name:=value syntax
-    for arg in sys.argv:
-        if len(arg.split(":=")) == 2:
-            node_arguments.append(arg)
-    
-    ROS_DISTRO = os.environ.get('ROS_DISTRO') # i.e. 'eloquent', 'foxy', etc.
-    if ROS_DISTRO[0] <= "e": # ROS versions eloquent and earlier require "node_executable", ROS foxy and later use "executable"
-        node = Node(
-            package='sick_scan_xd',
-            node_executable='sick_generic_caller',
-            output='screen',
-            arguments=node_arguments
-        )
-    else: # ROS versions eloquent and earlier require "node_executable", ROS foxy and later use "executable"
-        node = Node(
-            package='sick_scan_xd',
-            executable='sick_generic_caller',
-            output='screen',
-            arguments=node_arguments
-        )
-    
-    ld.add_action(node)
-    return ld
+    # Node for the LEFT LiDAR (.96)
+    lidar_left = Node(
+        package='sick_scan_xd',
+        executable='sick_generic_caller',
+        name='left_2D',
+        arguments=[
+            launch_file_path,
+            'hostname:=192.168.0.96',
+            'frame_id:=left_2D',
+            'nodename:=left_2D'
+        ],
+        remappings=[
+            ('scan', 'left')  # This changes the output topic from /scan to /left
+        ],
+        output='screen'
+    )
 
+    # Node for the RIGHT LiDAR (.97)
+    lidar_right = Node(
+        package='sick_scan_xd',
+        executable='sick_generic_caller',
+        name='right_2D',
+        arguments=[
+            launch_file_path,
+            'hostname:=192.168.0.97',
+            'frame_id:=right_2D',
+            'nodename:=right_2D'
+        ],
+        remappings=[
+            ('scan', 'right') # This changes the output topic from /scan to /right
+        ],
+        output='screen'
+    )
+
+    return LaunchDescription([
+        lidar_left,
+        lidar_right
+    ])

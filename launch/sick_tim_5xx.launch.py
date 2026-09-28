@@ -9,31 +9,32 @@ def generate_launch_description():
 
     ld = LaunchDescription()
     sick_scan_pkg_prefix = get_package_share_directory('sick_scan_xd')
-    launchfile = os.path.basename(__file__)[:-3] # convert "<lidar_name>.launch.py" to "<lidar_name>.launch"
-    launch_file_path = os.path.join(sick_scan_pkg_prefix, 'launch/' + launchfile) # 'launch/sick_tim_5xx.launch')
-    node_arguments=[launch_file_path]
-    
-    # append optional commandline arguments in name:=value syntax
-    for arg in sys.argv:
-        if len(arg.split(":=")) == 2:
-            node_arguments.append(arg)
-    
-    ROS_DISTRO = os.environ.get('ROS_DISTRO') # i.e. 'eloquent', 'foxy', etc.
-    if ROS_DISTRO[0] <= "e": # ROS versions eloquent and earlier require "node_executable", ROS foxy and later use "executable"
-        node = Node(
-            package='sick_scan_xd',
-            node_executable='sick_generic_caller',
-            output='screen',
-            arguments=node_arguments
-        )
-    else: # ROS versions eloquent and earlier require "node_executable", ROS foxy and later use "executable"
-        node = Node(
-            package='sick_scan_xd',
-            executable='sick_generic_caller',
-            output='screen',
-            arguments=node_arguments
-        )
-    
-    ld.add_action(node)
-    return ld
 
+    # Points to the twin XML — note: hardcoded name, NOT derived from __file__
+    # because this .py is the twin wrapper, not a 1:1 named pair
+    launch_file_path = os.path.join(sick_scan_pkg_prefix, 'launch/sick_tim_5xx_twin.launch')
+
+    # Collect any extra commandline args in name:=value syntax
+    extra_args = [arg for arg in sys.argv if len(arg.split(":=")) == 2]
+
+    ROS_DISTRO = os.environ.get('ROS_DISTRO')
+
+    # RIGHT LiDAR - 192.168.0.96
+    right_arguments = [launch_file_path, 'nodename:=sick_tim581_right'] + extra_args
+    # LEFT LiDAR  - 192.168.0.97
+    left_arguments  = [launch_file_path, 'nodename:=sick_tim581_left']  + extra_args
+
+    if ROS_DISTRO[0] <= "e":
+        right_node = Node(package='sick_scan_xd', node_executable='sick_generic_caller',
+                          output='screen', arguments=right_arguments)
+        left_node  = Node(package='sick_scan_xd', node_executable='sick_generic_caller',
+                          output='screen', arguments=left_arguments)
+    else:
+        right_node = Node(package='sick_scan_xd', executable='sick_generic_caller',
+                          output='screen', arguments=right_arguments)
+        left_node  = Node(package='sick_scan_xd', executable='sick_generic_caller',
+                          output='screen', arguments=left_arguments)
+
+    ld.add_action(right_node)
+    ld.add_action(left_node)
+    return ld
