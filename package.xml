@@ -19,7 +19,7 @@
   <build_depend condition="$ROS_VERSION != 1">rosidl_default_generators</build_depend>
 
   <depend condition="$ROS_VERSION == 1">dynamic_reconfigure</depend>
-  <depend condition="$BUILD_WITH_LDMRS_SUPPORT == True">libsick_ldmrs</depend>
+  <depend>libsick_ldmrs</depend>  <!-- always built first; used only when built with -DLDMRS=1 -->
   <depend condition="$ROS_VERSION == 1">roscpp</depend>
   <depend condition="$ROS_VERSION == 1">roslib</depend>
   <depend condition="$ROS_VERSION == 1">tf</depend>

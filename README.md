@@ -1,5 +1,22 @@
 # sick_scan_xd - Driver and tools for SICK LiDAR and RADAR devices
 
+> **Virya fork — per-vehicle configs, any number of scanners.** Used through Sensors_ws
+> (`virya-ai/VOS-sensors_ws`), which builds for one vehicle (`src/build.sh <vehicle>`).
+> Each scanner's config is a launch file here, named per vehicle:
+> `launch/virya_tim581_{left,right}_<vehicle>.launch` (TiM581) and
+> `launch/sick_ldmrs_<vehicle>.launch` (LD-MRS), listed in Sensors_ws's
+> `sensor_configs/config/catalogue.yaml`. A vehicle's `sensors.yaml` lists one entry per
+> scanner it has; the build installs each as
+> `share/sensor_configs/vehicle/sick_scan_xd/<sensor name>.launch`, and
+> `launch/sick_tim_5xx_twin.launch.py` starts one `sick_generic_caller` per installed
+> file, named after the sensor: one scanner or n, TiM581 or LD-MRS.
+>
+> **LD-MRS** is built only with `-DLDMRS=1`, which Sensors_ws passes for vehicles with an
+> LD-MRS; `libsick_ldmrs` is always a dependency, so colcon builds it first.
+> **Commit subjects must not contain `;`:** `CMakeLists.txt` puts the last subject into
+> `-DGITINFO` and CMake splits it there, which breaks the compile.
+
+
 <img align=right width="200" src="doc/SICK-logo.svg"/>
 
 This project provides a driver for SICK LiDARs and Radar sensors mentioned [here](#supported-sick-devices). The driver supports both Linux (native, ROS 1, ROS 2) and Windows (native and ROS 2). See the [CHANGELOG.md](CHANGELOG.md) for the latest updates.

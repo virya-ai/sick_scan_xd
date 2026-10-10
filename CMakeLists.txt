@@ -15,8 +15,15 @@ else()
     message(STATUS "Option CMAKE_ENABLE_EMULATOR = ${CMAKE_ENABLE_EMULATOR}, building ${PROJECT_NAME} without emulator support, ENABLE_EMULATOR=${ENABLE_EMULATOR}")
 endif()
 
-# Disable LD-MRS support completely
-set(BUILD_WITH_LDMRS_SUPPORT OFF CACHE BOOL "Disable LD-MRS support" FORCE)
+# LD-MRS support: on when the vehicle being built carries an LD-MRS. Sensors_ws's
+# src/build.sh passes -DLDMRS=1 for such a vehicle (sensor_configs' catalogue says
+# so); every other build leaves it off. libsick_ldmrs is a dependency in package.xml,
+# so colcon always builds it before this package.
+if(LDMRS EQUAL 1)
+    set(BUILD_WITH_LDMRS_SUPPORT ON CACHE BOOL "Build with LD-MRS support (libsick_ldmrs)" FORCE)
+else()
+    set(BUILD_WITH_LDMRS_SUPPORT OFF CACHE BOOL "Build with LD-MRS support (libsick_ldmrs)" FORCE)
+endif()
 
 # SCANSEGMENT_XD/MULTISCAN136 build options
 option(BUILD_WITH_SCANSEGMENT_XD_SUPPORT "Build ${PROJECT_NAME} with SCANSEGMENT_XD support (ON) or without SCANSEGMENT_XD support (OFF)" ON)
@@ -442,13 +449,20 @@ elseif(${BUILD_WITH_LDMRS_SUPPORT} OR BUILD_WITH_LDMRS_SUPPORT EQUAL ON)
         add_compile_options(-DLDMRS_SUPPORT=1)
         set(LDMRS_INCLUDES ${SICK_LDMRS_INCLUDE_DIRS})
         set(LDMRS_SOURCES driver/src/ldmrs/sick_ldmrs_config.cpp driver/src/ldmrs/sick_ldmrs_driver.cpp driver/src/ldmrs/sick_ldmrs_node.cpp)
-        set(LDMRS_TARGET_DEPENDENCIES SickLDMRS)
+        # The imported target libsick_ldmrs exports (sick_ldmrs). The literal "SickLDMRS"
+        # only names a library in SICK's newer libsick_ldmrs; with the virya-ai copy it
+        # made the linker look for -lSickLDMRS.
+        set(LDMRS_TARGET_DEPENDENCIES ${SICK_LDMRS_LIBRARIES})
         message(STATUS "LDMRS_INCLUDES: ${LDMRS_INCLUDES}")
         message(STATUS "LDMRS_SOURCES: ${LDMRS_SOURCES}")
         message(STATUS "LDMRS_TARGET_DEPENDENCIES: ${LDMRS_TARGET_DEPENDENCIES}")
         message(STATUS "SICK_LDMRS_LIBRARIES: ${SICK_LDMRS_LIBRARIES}")
         check_header_exists(${LDMRS_INCLUDES}/sick_ldmrs/manager.hpp sick_ldmrs/manager.hpp sick_ldmrs)
     else()
+        if(LDMRS EQUAL 1)
+            # The vehicle needs its LD-MRS: never build a driver that silently cannot run it.
+            message(FATAL_ERROR "LDMRS=1 but package SickLDMRS (libsick_ldmrs) was not found")
+        endif()
         message(STATUS "package SickLDMRS not found, ldmrs support disabled")
         add_compile_options(-DLDMRS_SUPPORT=0)
     endif()

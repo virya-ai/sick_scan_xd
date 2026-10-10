@@ -1,31 +1,37 @@
-import os
-import sys
-from ament_index_python.packages import get_package_share_directory
+"""Start one SICK driver per SICK config installed for this build's vehicle.
+
+Sensors_ws builds for one vehicle (src/build.sh <vehicle>). Each SICK sensor in that
+vehicle's sensors.yaml picks a config file (a sick_scan_xd .launch file, e.g.
+launch/virya_tim581_left_AMR50_Canopy.launch); sensor_configs installs it as
+share/sensor_configs/vehicle/sick_scan_xd/<sensor name>.launch. This starts one
+sick_generic_caller per installed file, named after the sensor: one scanner or n,
+TiM581 or LD-MRS, all launched the same way. The file name is kept so whatever
+started the two-scanner launch still starts this one.
+"""
+from pathlib import Path
+
+from ament_index_python.packages import get_package_share_directory, PackageNotFoundError
 from launch import LaunchDescription
 from launch_ros.actions import Node
-from launch.actions import DeclareLaunchArgument
+
+
+def vehicle_sick_configs():
+    try:
+        share = Path(get_package_share_directory('sensor_configs'))
+    except PackageNotFoundError:
+        raise RuntimeError('sensor_configs is not installed: build Sensors_ws with '
+                           'src/build.sh <vehicle>')
+    configs = sorted((share / 'vehicle' / 'sick_scan_xd').glob('*.launch'))
+    if not configs:
+        raise RuntimeError(
+            f'no SICK config installed for vehicle {(share / "vehicle_name").read_text().strip()} '
+            f'({share / "vehicle" / "sick_scan_xd"}): check its sensors.yaml')
+    return configs
+
 
 def generate_launch_description():
-
-    ld = LaunchDescription()
-    sick_scan_pkg_prefix = get_package_share_directory('sick_scan_xd')
-
-    right_launch = os.path.join(sick_scan_pkg_prefix, 'launch/virya_tim581_right.launch')
-    left_launch  = os.path.join(sick_scan_pkg_prefix, 'launch/virya_tim581_left.launch')
-
-    ROS_DISTRO = os.environ.get('ROS_DISTRO')
-
-    if ROS_DISTRO[0] <= "e":
-        right_node = Node(package='sick_scan_xd', node_executable='sick_generic_caller',
-                          output='screen', name='sick_tim581_right', arguments=[right_launch])
-        left_node  = Node(package='sick_scan_xd', node_executable='sick_generic_caller',
-                          output='screen', name='sick_tim581_left', arguments=[left_launch])
-    else:
-        right_node = Node(package='sick_scan_xd', executable='sick_generic_caller', name='sick_tim581_right',
-                          output='screen', arguments=[right_launch])
-        left_node  = Node(package='sick_scan_xd', executable='sick_generic_caller', name='sick_tim581_left',
-                          output='screen', arguments=[left_launch])
-
-    ld.add_action(right_node)
-    ld.add_action(left_node)
-    return ld
+    return LaunchDescription([
+        Node(package='sick_scan_xd', executable='sick_generic_caller', name=config.stem,
+             output='screen', arguments=[str(config)])
+        for config in vehicle_sick_configs()
+    ])
